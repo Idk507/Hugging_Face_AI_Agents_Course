@@ -1,0 +1,65 @@
+create extension if not exists vector;
+Fix: Allow Insert Access via Row-Level Security Policy
+🔹 Step 1: Go to Supabase Dashboard
+Open your Supabase project.
+
+Click on Database → Tables → Select your table (e.g., documents).
+
+🔹 Step 2: Turn ON RLS (if not already)
+Go to "Row Level Security" tab. If RLS is enabled, you’ll need to define a policy to allow inserts.
+
+🔹 Step 3: Create a Policy to Allow Insert
+Option 1: Allow Full Access to Everyone (for dev/test)
+Click "New Policy", then:
+
+Name: Allow Insert
+
+Action: INSERT
+
+Using Expression: true
+
+With Check: true
+
+Or run this SQL in the SQL Editor:
+
+sql
+Copy
+Edit
+-- Allow all users to insert
+create policy "Allow all inserts"
+on documents
+for insert
+using (true)
+with check (true);
+⚠️ Warning: This allows anyone to insert rows. Use carefully in production.
+
+✅ (Optional) Turn Off RLS for Development
+You can also disable RLS (not recommended for production):
+
+sql
+Copy
+Edit
+alter table documents disable row level security;
+
+
+create or replace function match_documents_langchain(query_embedding vector(1536), match_count int default null)
+returns table (
+  id bigint,
+  content text,
+  metadata jsonb,
+  embedding vector,
+  similarity float
+)
+language sql
+stable
+as $$
+  select
+    id,
+    content,
+    metadata,
+    embedding,
+    1 - (embedding <=> query_embedding) as similarity
+  from documents
+  order by embedding <=> query_embedding
+  limit coalesce(match_count, 5);
+$$;
